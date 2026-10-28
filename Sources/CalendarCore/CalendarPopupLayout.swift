@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 
 public enum CalendarPopupLayout {
-    public static let preferredSize = CGSize(width: 400, height: 680)
+    public static let preferredSize = CGSize(width: 400, height: 520)
     public static let margin: CGFloat = 8
 
     /// Leave room for AppKit's popover border/arrow in addition to the screen margin.

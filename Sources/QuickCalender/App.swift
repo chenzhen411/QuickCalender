@@ -64,7 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func didWake() { model.tick(); model.refreshWeather(); updateStatus() }
 
-    @objc private func screensChanged() { popover.performClose(nil); preparePopup() }
+    @objc private func screensChanged() { popover.close(); preparePopup() }
 
     private func preparePopup() {
         popupScreen = item.button?.window?.screen ?? NSScreen.main
@@ -85,8 +85,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if frame != window.frame { window.setFrame(frame, display: true, animate: false) }
     }
 
+    func popoverShouldClose(_ popover: NSPopover) -> Bool {
+        // A transient popover normally dismisses on mouse-down, before the status
+        // button's mouse-up action. Keep it open for that action to toggle closed.
+        if NSApp.currentEvent?.type == .keyDown { return true }
+        guard let button = item.button, let window = button.window else { return true }
+        let statusFrame = window.convertToScreen(button.convert(button.bounds, to: nil))
+        return !statusFrame.contains(NSEvent.mouseLocation)
+    }
+
     @objc private func toggleCalendar() {
         if NSApp.currentEvent?.type == .rightMouseUp {
+            popover.close()
             let menu = NSMenu()
             let settings = NSMenuItem(title: "设置…", action: #selector(openSettings), keyEquivalent: ",")
             settings.target = self; menu.addItem(settings)
@@ -98,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             item.menu = nil
             return
         }
-        if popover.isShown { popover.performClose(nil) }
+        if popover.isShown { popover.close() }
         else if let button = item.button {
             model.today()
             preparePopup()
@@ -109,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func openSettings() {
-        popover.performClose(nil)
+        popover.close()
         if settingsWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 560, height: 590), styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             window.title = "快捷日历设置"
@@ -122,7 +132,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func showPreview() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 650), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: CalendarPopupLayout.preferredSize), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "快捷日历"
         window.contentViewController = NSHostingController(rootView: CalendarView(model: model))
         window.center(); window.makeKeyAndOrderFront(nil)

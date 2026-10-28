@@ -15,7 +15,7 @@ struct SettingsView: View {
                     Text("快捷日历  /  QuickCalender").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.1")
+                Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.2")
                     .font(.system(size: 10, design: .monospaced)).foregroundStyle(.tertiary)
             }.padding(24)
             Picker("设置分类", selection: $tab) {
@@ -42,6 +42,7 @@ struct SettingsView: View {
         }
         .frame(width: 560, height: 590)
         .background(Color(nsColor: .windowBackgroundColor)).tint(.calAccent)
+        .preferredColorScheme(model.colorScheme)
     }
 
     private var statusSettings: some View {
@@ -75,7 +76,7 @@ struct SettingsView: View {
             Section("日历内容") {
                 Toggle("显示农历", isOn: $model.preferences.showLunar)
                 Toggle("显示中国节日", isOn: $model.preferences.showFestivals)
-                Toggle("显示天气卡片", isOn: $model.preferences.showWeather)
+                Toggle("日期卡片中显示天气", isOn: $model.preferences.showWeather)
                 Toggle("日期格中显示天气图标", isOn: $model.preferences.showDayWeather).disabled(!model.preferences.showWeather)
             }
             Section("日历布局") {
@@ -93,18 +94,20 @@ struct SettingsView: View {
 
     private var generalSettings: some View {
         Form {
-            Section("外观") {
-                Picker("主题", selection: $model.preferences.appearance) {
-                    Text("跟随系统").tag("system")
-                    Text("浅色").tag("light")
-                    Text("深色").tag("dark")
+            Section("界面配色") {
+                Picker("配色", selection: $model.preferences.appearance) {
+                    Text("Light").tag("light")
+                    Text("Dark").tag("dark")
+                    Text("System").tag("system")
                 }.pickerStyle(.segmented)
+                Text("Light 为浅色，Dark 为深色，System 跟随 Mac 系统。切换后日历和设置窗口即时生效。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Section("使用方式") {
                 LabeledContent("打开日历", value: "点击状态栏日期")
                 LabeledContent("打开设置", value: "日历右下角设置 / ⌘,")
                 LabeledContent("更多操作", value: "右键点击状态栏日期")
-                LabeledContent("关闭日历", value: "点击其他位置 / Esc")
+                LabeledContent("关闭日历", value: "再次点击状态栏 / 点击其他位置 / Esc")
             }.font(.system(size: 12))
             Section("数据与隐私") {
                 Text("设置仅保存在本机。获取天气时会向 Open-Meteo 发送所选城市的坐标，搜索城市时发送查询文本；应用不请求定位权限。")

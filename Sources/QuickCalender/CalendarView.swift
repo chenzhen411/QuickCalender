@@ -14,13 +14,11 @@ struct CalendarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
             ScrollView(.vertical) {
                 VStack(spacing: 14) {
-                    if model.preferences.showWeather { WeatherCard(model: model) }
                     monthHeader
                     calendarGrid
-                    selectedDetail
+                    DateWeatherCard(model: model)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 14)
@@ -33,22 +31,7 @@ struct CalendarView: View {
         .clipped()
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(.calAccent)
-    }
-
-    private var header: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "calendar")
-                .font(.system(size: 14, weight: .semibold)).foregroundStyle(Color.calAccent)
-                .frame(width: 30, height: 30)
-                .background(Color.calAccent.opacity(0.09), in: RoundedRectangle(cornerRadius: 9))
-            Text("快捷日历").font(.system(size: 13, weight: .semibold))
-            Spacer()
-            Circle().fill(Color.green).frame(width: 5, height: 5)
-            Text(model.now, format: .dateTime.hour().minute()).monospacedDigit().font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
-        }
-        .padding(.horizontal, 20).padding(.vertical, 13)
-        .fixedSize(horizontal: false, vertical: true)
-        .overlay(alignment: .bottom) { Divider().opacity(0.6) }
+        .preferredColorScheme(model.colorScheme)
     }
 
     private var monthHeader: some View {
@@ -131,7 +114,7 @@ struct CalendarView: View {
                         .foregroundStyle(selected ? Color.white.opacity(0.8) : (holiday != nil ? Color.orange : Color.secondary))
                 }
             }
-            .frame(maxWidth: .infinity).frame(height: 42)
+            .frame(maxWidth: .infinity).frame(height: 38)
             .foregroundStyle(selected ? Color.white : (today ? Color.calAccent : Color.primary))
             .background {
                 if selected { RoundedRectangle(cornerRadius: 10).fill(Color.calAccent).shadow(color: .calAccent.opacity(0.22), radius: 4, y: 2) }
@@ -152,35 +135,6 @@ struct CalendarView: View {
         if model.preferences.showFestivals { parts += day.festivals }
         if let weather { parts.append("\(WeatherCode.label(weather.code))，\(Int(weather.low.rounded()))至\(Int(weather.high.rounded()))度") }
         return parts.joined(separator: "，")
-    }
-
-    private var selectedDetail: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(spacing: 1) {
-                Text(String(calendar.component(.day, from: model.selectedDate))).font(.system(size: 27, weight: .light, design: .rounded))
-                Text(model.selectedDate, format: .dateTime.weekday(.wide).locale(Locale(identifier: "zh_CN"))).font(.system(size: 9)).foregroundStyle(.secondary)
-            }.frame(width: 44)
-            Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 1, height: 35)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(model.selectedDate, format: .dateTime.year().month(.wide).day().locale(Locale(identifier: "zh_CN"))).font(.system(size: 12, weight: .medium))
-                if model.preferences.showLunar { Text("农历 " + model.selectedDay.fullLunar).font(.system(size: 11)).foregroundStyle(.secondary) }
-                if model.preferences.showFestivals {
-                    let festivals = model.selectedDay.festivals
-                    if !festivals.isEmpty { Text(festivals.joined(separator: " · ")).font(.system(size: 10, weight: .medium)).foregroundStyle(.orange) }
-                }
-            }
-            Spacer(minLength: 0)
-            if model.preferences.showWeather, let day = model.weatherDay(for: model.selectedDate) {
-                VStack(alignment: .trailing, spacing: 5) {
-                    Image(systemName: WeatherCode.symbol(day.code)).symbolRenderingMode(.multicolor).font(.system(size: 17))
-                    Text("\(Int(day.low.rounded()))° / \(Int(day.high.rounded()))°").font(.system(size: 10)).foregroundStyle(.secondary)
-                    if let rain = day.rain { Text("降水 \(rain)%").font(.system(size: 9)).foregroundStyle(.secondary) }
-                }
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
-        .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var footer: some View {

@@ -85,6 +85,18 @@ struct CalendarCoreTests {
         #expect(!(result.showLunar)); #expect(result.statusStyle == .full); #expect(result.city == p.city)
     }
 
+    @Test func themeSelectionPersistsWithoutChangingStatusBarTime() throws {
+        let date = engine.calendar.date(from: DateComponents(year: 2026, month: 10, day: 28, hour: 13, minute: 5))!
+        for theme in ["light", "dark", "system"] {
+            var preferences = Preferences()
+            preferences.appearance = theme
+            let saved = try JSONEncoder().encode(preferences)
+            let restored = try JSONDecoder().decode(Preferences.self, from: saved)
+            #expect(restored.appearance == theme)
+            #expect(restored.statusLabel(at: date, timeZone: engine.calendar.timeZone).contains("13:05"))
+        }
+    }
+
     @Test func testForecastDecodingNullsMissingDatesAndShortArrays() throws {
         let data = #"{"timezone":"Asia/Shanghai","current":{"temperature_2m":19.5,"weather_code":2},"daily":{"time":["2026-10-28","2026-10-29","2026-10-30"],"weather_code":[2,null,3],"temperature_2m_max":[23,24],"temperature_2m_min":[16,17],"precipitation_probability_max":[10,null]}}"#.data(using: .utf8)!
         let f = try JSONDecoder().decode(Forecast.self, from: data)

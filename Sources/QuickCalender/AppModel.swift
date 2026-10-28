@@ -1,6 +1,7 @@
 import AppKit
 import CalendarCore
 import Combine
+import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -8,7 +9,7 @@ final class AppModel: ObservableObject {
     @Published var preferences: Preferences {
         didSet {
             if let data = try? JSONEncoder().encode(preferences) { UserDefaults.standard.set(data, forKey: Self.storageKey) }
-            applyAppearance()
+            if oldValue.appearance != preferences.appearance { applyAppearance() }
             if oldValue.city != preferences.city || oldValue.showWeather != preferences.showWeather {
                 weatherTask?.cancel()
                 forecast = nil; updatedAt = nil; weatherError = nil; loadingWeather = false
@@ -56,6 +57,14 @@ final class AppModel: ObservableObject {
         case "light": NSApp.appearance = NSAppearance(named: .aqua)
         case "dark": NSApp.appearance = NSAppearance(named: .darkAqua)
         default: NSApp.appearance = nil
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch preferences.appearance {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
         }
     }
 
