@@ -15,6 +15,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var calendarHost: NSHostingController<CalendarView>!
     private var viewportSize = CalendarPopupLayout.preferredSize
     private var popupScreen: NSScreen?
+    private var localDismissMonitor: Any?
+    private var globalDismissMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -28,13 +30,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         item.button?.imagePosition = .imageLeading
         item.button?.toolTip = "快捷日历 · 点击查看日历，右键打开菜单"
         popover = NSPopover()
-        popover.behavior = .transient
+        // A transient popover can close on mouse-down before the status button's
+        // mouse-up action toggles it. Own all dismissal to avoid that race.
+        popover.behavior = .applicationDefined
         popover.animates = false
         popover.delegate = self
         calendarHost = NSHostingController(rootView: CalendarView(model: model, viewportSize: viewportSize))
         calendarHost.sizingOptions = []
         popover.contentViewController = calendarHost
         preparePopup()
+        installDismissMonitors()
         model.$preferences.sink { [weak self] _ in
             DispatchQueue.main.async { self?.updateStatus() }
         }.store(in: &subscriptions)
@@ -85,13 +90,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if frame != window.frame { window.setFrame(frame, display: true, animate: false) }
     }
 
-    func popoverShouldClose(_ popover: NSPopover) -> Bool {
-        // A transient popover normally dismisses on mouse-down, before the status
-        // button's mouse-up action. Keep it open for that action to toggle closed.
-        if NSApp.currentEvent?.type == .keyDown { return true }
-        guard let button = item.button, let window = button.window else { return true }
-        let statusFrame = window.convertToScreen(button.convert(button.bounds, to: nil))
-        return !statusFrame.contains(NSEvent.mouseLocation)
+    private var pointerIsOverStatusItem: Bool {
+        guard let button = item.button, let window = button.window else { return false }
+        return window.convertToScreen(button.convert(button.bounds, to: nil)).contains(NSEvent.mouseLocation)
+    }
+
+    private func containsPointer(_ window: NSWindow) -> Bool {
+        window.frame.contains(NSEvent.mouseLocation)
+            || (window.childWindows ?? []).contains(where: containsPointer)
+    }
+
+    private func installDismissMonitors() {
+        localDismissMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown, .keyDown]) { [weak self] event in
+            guard let self, self.popover.isShown else { return event }
+            if event.type == .keyDown {
+                // Let a nested month picker handle its own Escape first.
+                if event.keyCode == 53, event.window === self.calendarHost.view.window {
+                    self.popover.close()
+                    return nil
+                }
+            } else if !self.pointerIsOverStatusItem,
+                      let window = self.calendarHost.view.window, !self.containsPointer(window) {
+                self.popover.close()
+            }
+            return event
+        }
+        globalDismissMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] _ in
+            guard let self, self.popover.isShown, !self.pointerIsOverStatusItem else { return }
+            self.popover.close()
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if let localDismissMonitor { NSEvent.removeMonitor(localDismissMonitor) }
+        if let globalDismissMonitor { NSEvent.removeMonitor(globalDismissMonitor) }
     }
 
     @objc private func toggleCalendar() {

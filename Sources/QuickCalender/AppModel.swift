@@ -25,6 +25,7 @@ final class AppModel: ObservableObject {
     @Published var weatherError: String?
     @Published var loadingWeather = false
     private var weatherTask: Task<Void, Never>?
+    private var appearanceObservation: NSKeyValueObservation?
     private var requestID = UUID()
     var showSettings: (() -> Void)?
 
@@ -49,6 +50,9 @@ final class AppModel: ObservableObject {
             preferences = saved
         } else { preferences = Preferences() }
         applyAppearance()
+        appearanceObservation = NSApp.observe(\.effectiveAppearance, options: [.new]) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.objectWillChange.send() }
+        }
         _ = month
     }
 
@@ -60,11 +64,13 @@ final class AppModel: ObservableObject {
         }
     }
 
-    var colorScheme: ColorScheme? {
+    var colorScheme: ColorScheme {
         switch preferences.appearance {
         case "light": return .light
         case "dark": return .dark
-        default: return nil
+        // Clearing SwiftUI's preferred scheme can leave a hosting window using
+        // its previous override. Resolve System explicitly from the app instead.
+        default: return NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
         }
     }
 
