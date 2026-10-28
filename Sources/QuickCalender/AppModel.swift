@@ -27,13 +27,28 @@ final class AppModel: ObservableObject {
     private var requestID = UUID()
     var showSettings: (() -> Void)?
 
-    var engine: CalendarEngine { CalendarEngine(mondayFirst: preferences.mondayFirst) }
+    private var calendarEngine = CalendarEngine()
+    private let monthCache = CalendarMonthCache()
+    var engine: CalendarEngine {
+        if calendarEngine.calendar.firstWeekday != (preferences.mondayFirst ? 2 : 1)
+            || calendarEngine.calendar.timeZone != TimeZone.current {
+            calendarEngine = CalendarEngine(mondayFirst: preferences.mondayFirst)
+        }
+        return calendarEngine
+    }
+    var month: CalendarMonth { monthCache.month(containing: displayedMonth, engine: engine) }
+    var selectedDay: CalendarDay {
+        monthCache.month(containing: selectedDate, engine: engine).days.first(where: {
+            engine.calendar.isDate($0.date, inSameDayAs: selectedDate)
+        })!
+    }
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey), let saved = try? JSONDecoder().decode(Preferences.self, from: data) {
             preferences = saved
         } else { preferences = Preferences() }
         applyAppearance()
+        _ = month
     }
 
     func applyAppearance() {
@@ -44,7 +59,13 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func today() { now = Date(); selectedDate = now; displayedMonth = engine.monthStart(now) }
+    func today() {
+        let date = Date()
+        let start = engine.monthStart(date)
+        if displayedMonth != start { displayedMonth = start }
+        if !engine.calendar.isDate(selectedDate, inSameDayAs: date) { selectedDate = date }
+        if preferences.showSeconds || Int(now.timeIntervalSince1970 / 60) != Int(date.timeIntervalSince1970 / 60) { now = date }
+    }
 
     func moveMonth(_ amount: Int) {
         let next = engine.calendar.date(byAdding: .month, value: amount, to: engine.monthStart(displayedMonth))!

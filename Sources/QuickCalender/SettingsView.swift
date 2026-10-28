@@ -15,7 +15,8 @@ struct SettingsView: View {
                     Text("快捷日历  /  QuickCalender").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("1.0.0").font(.system(size: 10, design: .monospaced)).foregroundStyle(.tertiary)
+                Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.1")
+                    .font(.system(size: 10, design: .monospaced)).foregroundStyle(.tertiary)
             }.padding(24)
             Picker("设置分类", selection: $tab) {
                 Text("状态栏").tag(0)

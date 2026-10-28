@@ -1,9 +1,10 @@
 import AppKit
 import SwiftUI
 import Combine
+import CalendarCore
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var item: NSStatusItem!
     private var popover: NSPopover!
     private var settingsWindow: NSWindow?
@@ -11,6 +12,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var model: AppModel!
     private var timer: Timer?
     private var subscriptions = Set<AnyCancellable>()
+    private var calendarHost: NSHostingController<CalendarView>!
+    private var viewportSize = CalendarPopupLayout.preferredSize
+    private var popupScreen: NSScreen?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -20,10 +24,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.target = self
         item.button?.action = #selector(toggleCalendar)
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        item.button?.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        item.button?.imagePosition = .imageLeading
+        item.button?.toolTip = "快捷日历 · 点击查看日历，右键打开菜单"
         popover = NSPopover()
         popover.behavior = .transient
-        popover.animates = true
-        popover.contentViewController = NSHostingController(rootView: CalendarView(model: model))
+        popover.animates = false
+        popover.delegate = self
+        calendarHost = NSHostingController(rootView: CalendarView(model: model, viewportSize: viewportSize))
+        calendarHost.sizingOptions = []
+        popover.contentViewController = calendarHost
+        preparePopup()
         model.$preferences.sink { [weak self] _ in
             DispatchQueue.main.async { self?.updateStatus() }
         }.store(in: &subscriptions)
@@ -32,23 +43,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil)
         updateStatus()
+        if let index = CommandLine.arguments.firstIndex(of: "--check-popup"), index + 1 < CommandLine.arguments.count {
+            let path = CommandLine.arguments[index + 1]
+            DispatchQueue.main.async { [self] in
+                guard let button = item.button, let screen = popupScreen else { NSApp.terminate(nil); return }
+                NSApp.activate(ignoringOtherApps: true)
+                PopupCheck(popover: popover, host: calendarHost, model: model, button: button, screen: screen, path: path).run()
+            }
+            return
+        }
         model.refreshWeather()
+        NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         if CommandLine.arguments.contains("--preview") || Bundle.main.object(forInfoDictionaryKey: "QuickCalenderPreview") as? Bool == true { showPreview() }
         if CommandLine.arguments.contains("--settings") { openSettings() }
     }
 
     private func updateStatus() {
         guard let button = item.button else { return }
-        button.title = model.preferences.statusLabel(at: model.now)
-        button.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
-        button.image = model.preferences.showStatusIcon ? NSImage(systemSymbolName: "calendar", accessibilityDescription: nil) : nil
-        button.imagePosition = .imageLeading
-        button.image?.isTemplate = true
-        button.toolTip = "快捷日历 · 点击查看日历，右键打开菜单"
-        button.setAccessibilityLabel("快捷日历，\(button.title)")
+        let title = model.preferences.statusLabel(at: model.now)
+        if button.title != title {
+            button.title = title
+            button.setAccessibilityLabel("快捷日历，\(title)")
+        }
+        if model.preferences.showStatusIcon != (button.image != nil) {
+            button.image = model.preferences.showStatusIcon ? NSImage(systemSymbolName: "calendar", accessibilityDescription: nil) : nil
+            button.image?.isTemplate = true
+        }
     }
 
     @objc private func didWake() { model.tick(); model.refreshWeather(); updateStatus() }
+
+    @objc private func screensChanged() { popover.performClose(nil); preparePopup() }
+
+    private func preparePopup() {
+        popupScreen = item.button?.window?.screen ?? NSScreen.main
+        guard let screen = popupScreen else { return }
+        let size = CalendarPopupLayout.contentSize(visibleFrame: screen.visibleFrame)
+        if viewportSize != size {
+            viewportSize = size
+            calendarHost.rootView = CalendarView(model: model, viewportSize: size)
+        }
+        popover.contentSize = size
+        calendarHost.view.setFrameSize(size)
+        calendarHost.view.layoutSubtreeIfNeeded()
+    }
+
+    func popoverDidShow(_ notification: Notification) {
+        guard let screen = popupScreen, let window = calendarHost.view.window else { return }
+        let frame = CalendarPopupLayout.constrainedFrame(window.frame, visibleFrame: screen.visibleFrame)
+        if frame != window.frame { window.setFrame(frame, display: true, animate: false) }
+    }
 
     @objc private func toggleCalendar() {
         if NSApp.currentEvent?.type == .rightMouseUp {
@@ -66,6 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown { popover.performClose(nil) }
         else if let button = item.button {
             model.today()
+            preparePopup()
             NSApp.activate(ignoringOtherApps: true)
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()

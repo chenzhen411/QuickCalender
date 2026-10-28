@@ -8,25 +8,29 @@ extension Color {
 
 struct CalendarView: View {
     @ObservedObject var model: AppModel
+    var viewportSize = CalendarPopupLayout.preferredSize
     @State private var showJump = false
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
     private var calendar: Calendar { model.engine.calendar }
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            VStack(spacing: 16) {
-                if model.preferences.showWeather { WeatherCard(model: model) }
-                monthHeader
-                calendarGrid
-                selectedDetail
+            ScrollView(.vertical) {
+                VStack(spacing: 14) {
+                    if model.preferences.showWeather { WeatherCard(model: model) }
+                    monthHeader
+                    calendarGrid
+                    selectedDetail
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 14)
+                .padding(.bottom, 14)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 18)
-            .padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             footer
         }
-        .frame(width: 400)
+        .frame(width: viewportSize.width, height: viewportSize.height)
+        .clipped()
         .background(Color(nsColor: .windowBackgroundColor))
         .tint(.calAccent)
     }
@@ -43,6 +47,7 @@ struct CalendarView: View {
             Text(model.now, format: .dateTime.hour().minute()).monospacedDigit().font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary)
         }
         .padding(.horizontal, 20).padding(.vertical, 13)
+        .fixedSize(horizontal: false, vertical: true)
         .overlay(alignment: .bottom) { Divider().opacity(0.6) }
     }
 
@@ -85,9 +90,14 @@ struct CalendarView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-            LazyVGrid(columns: columns, spacing: 5) {
-                ForEach(model.engine.days(in: model.displayedMonth), id: \.self) { date in
-                    dayCell(date)
+            let days = model.month.days
+            VStack(spacing: 4) {
+                ForEach(0..<6, id: \.self) { row in
+                    HStack(spacing: 4) {
+                        ForEach(days[(row * 7)..<(row * 7 + 7)]) { day in
+                            dayCell(day)
+                        }
+                    }
                 }
             }
         }
@@ -95,16 +105,19 @@ struct CalendarView: View {
 
     private var weekdays: [String] { model.preferences.mondayFirst ? ["一", "二", "三", "四", "五", "六", "日"] : ["日", "一", "二", "三", "四", "五", "六"] }
 
-    private func dayCell(_ date: Date) -> some View {
+    private func dayCell(_ day: CalendarDay) -> some View {
+        let date = day.date
         let selected = calendar.isDate(date, inSameDayAs: model.selectedDate)
         let today = calendar.isDate(date, inSameDayAs: model.now)
         let inMonth = calendar.isDate(date, equalTo: model.displayedMonth, toGranularity: .month)
-        let holiday = model.preferences.showFestivals ? model.engine.festivals(date).first : nil
-        let forecast = model.preferences.showWeather && model.preferences.showDayWeather ? model.weatherDay(for: date) : nil
+        let holiday = model.preferences.showFestivals ? day.festivals.first : nil
+        let weather = model.preferences.showWeather ? model.forecast?.day(day.key) : nil
+        let forecast = model.preferences.showDayWeather ? weather : nil
+        let accessibility = dayAccessibility(day, weather: weather)
         return Button { model.select(date) } label: {
             VStack(spacing: 3) {
                 HStack(spacing: 2) {
-                    Text(String(calendar.component(.day, from: date)))
+                    Text(String(day.number))
                         .font(.system(size: 14, weight: selected || today ? .bold : .medium, design: .rounded))
                     if let forecast {
                         Image(systemName: WeatherCode.symbol(forecast.code))
@@ -112,13 +125,13 @@ struct CalendarView: View {
                     }
                 }
                 if model.preferences.showLunar || holiday != nil {
-                    Text(holiday ?? model.engine.lunarLabel(date))
+                    Text(holiday ?? day.lunar)
                         .font(.system(size: 9, weight: holiday == nil ? .regular : .medium))
                         .lineLimit(1).minimumScaleFactor(0.65)
                         .foregroundStyle(selected ? Color.white.opacity(0.8) : (holiday != nil ? Color.orange : Color.secondary))
                 }
             }
-            .frame(maxWidth: .infinity).frame(height: 45)
+            .frame(maxWidth: .infinity).frame(height: 42)
             .foregroundStyle(selected ? Color.white : (today ? Color.calAccent : Color.primary))
             .background {
                 if selected { RoundedRectangle(cornerRadius: 10).fill(Color.calAccent).shadow(color: .calAccent.opacity(0.22), radius: 4, y: 2) }
@@ -128,17 +141,16 @@ struct CalendarView: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(dayAccessibility(date))
+        .accessibilityLabel(accessibility)
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .help(dayAccessibility(date))
+        .help(accessibility)
     }
 
-    private func dayAccessibility(_ date: Date) -> String {
-        let f = DateFormatter(); f.locale = Locale(identifier: "zh_CN"); f.dateFormat = "yyyy年M月d日 EEEE"
-        var parts = [f.string(from: date)]
-        if model.preferences.showLunar { parts.append("农历" + model.engine.lunarLabel(date, full: true)) }
-        if model.preferences.showFestivals { parts += model.engine.festivals(date) }
-        if model.preferences.showWeather, let day = model.weatherDay(for: date) { parts.append("\(WeatherCode.label(day.code))，\(Int(day.low.rounded()))至\(Int(day.high.rounded()))度") }
+    private func dayAccessibility(_ day: CalendarDay, weather: WeatherDay?) -> String {
+        var parts = [day.accessibleDate]
+        if model.preferences.showLunar { parts.append("农历" + day.fullLunar) }
+        if model.preferences.showFestivals { parts += day.festivals }
+        if let weather { parts.append("\(WeatherCode.label(weather.code))，\(Int(weather.low.rounded()))至\(Int(weather.high.rounded()))度") }
         return parts.joined(separator: "，")
     }
 
@@ -151,9 +163,9 @@ struct CalendarView: View {
             Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 1, height: 35)
             VStack(alignment: .leading, spacing: 5) {
                 Text(model.selectedDate, format: .dateTime.year().month(.wide).day().locale(Locale(identifier: "zh_CN"))).font(.system(size: 12, weight: .medium))
-                if model.preferences.showLunar { Text("农历 " + model.engine.lunarLabel(model.selectedDate, full: true)).font(.system(size: 11)).foregroundStyle(.secondary) }
+                if model.preferences.showLunar { Text("农历 " + model.selectedDay.fullLunar).font(.system(size: 11)).foregroundStyle(.secondary) }
                 if model.preferences.showFestivals {
-                    let festivals = model.engine.festivals(model.selectedDate)
+                    let festivals = model.selectedDay.festivals
                     if !festivals.isEmpty { Text(festivals.joined(separator: " · ")).font(.system(size: 10, weight: .medium)).foregroundStyle(.orange) }
                 }
             }
@@ -187,6 +199,7 @@ struct CalendarView: View {
             }.buttonStyle(.plain).foregroundStyle(.secondary).help("退出快捷日历").accessibilityLabel("退出快捷日历")
         }
         .padding(.horizontal, 22).padding(.vertical, 13)
+        .fixedSize(horizontal: false, vertical: true)
         .overlay(alignment: .top) { Divider().opacity(0.6) }
     }
 }

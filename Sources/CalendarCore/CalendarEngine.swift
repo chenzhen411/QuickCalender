@@ -81,11 +81,9 @@ public struct CalendarEngine {
     }
 
     public func dayKey(_ date: Date, timeZone: TimeZone? = nil) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = timeZone ?? calendar.timeZone
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
+        var civil = calendar
+        if let timeZone { civil.timeZone = timeZone }
+        let parts = civil.dateComponents([.year, .month, .day], from: date)
+        return String(format: "%04d-%02d-%02d", parts.year!, parts.month!, parts.day!)
     }
 }

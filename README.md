@@ -11,6 +11,7 @@
 - **天气**：城市实时温度、体感、湿度、风速；日期格天气图标、每日高低温及降水概率。可选常用城市或搜索全球城市，默认上海，可自行更换。
 - **独立设置窗口**：状态栏样式、日历显示内容、天气城市和浅色 / 深色 / 跟随系统；设置即时生效并自动保存。
 - **原生体验**：SwiftUI + AppKit，无第三方包依赖，无 Dock 常驻图标；点击其他位置关闭弹出日历，右键状态栏可打开设置或退出。
+- **打开与边界**：月历日期信息提前计算并缓存，弹窗预先布局、无展开动画。根据状态栏所在屏幕的可用区域限制宽高并校正位置；天气加载后保持窗口大小，内容过长时内部滚动，设置按钮始终可见。
 
 ## 构建和运行
 
@@ -41,6 +42,9 @@ dist/QuickCalender.app/Contents/MacOS/QuickCalender --preview
 
 # 启动时直接显示设置
 open dist/QuickCalender.app --args --settings
+
+# 原生弹窗回归检查（短暂打开测试窗口，写入边界及耗时报告后退出）
+.build/release/QuickCalender --check-popup /tmp/quickcalender-popup.json
 ```
 
 也可以使用 Xcode 打开 `Package.swift` 进行开发。运行上述打包脚本生成包含 `Info.plist` 和图标的标准 `.app`。
