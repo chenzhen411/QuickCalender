@@ -2,6 +2,24 @@
 
 一个轻巧的原生 macOS 状态栏日历。点开日期，就能看见月历、农历、中国节日和城市天气。
 
+## 下载安装
+
+**[下载 DMG · v1.0.4](https://github.com/chenzhen411/QuickCalender/releases/download/v1.0.4/QuickCalender-1.0.4-macOS-arm64.dmg)** · [查看最新版本](https://github.com/chenzhen411/QuickCalender/releases/latest)
+
+适用于 **Apple Silicon（M 系列芯片）Mac，macOS 13 或更新版本**。
+
+1. 下载并打开 DMG，将 `QuickCalender.app` 拖入 `Applications`（应用程序）。
+2. 从“应用程序”启动快捷日历，在状态栏点击日期即可展开月历。
+3. 首次启动默认开启开机启动，可在“设置 → 通用 → 启动”关闭。
+
+当前安装包使用本地 ad-hoc 签名，尚未进行 Apple Developer ID 签名和公证。
+
+## 界面预览
+
+| 日历界面 | 设置界面 |
+| :---: | :---: |
+| <img src="docs/images/calendar.jpg" width="360" alt="快捷日历月历，显示农历、中国节日和日期天气卡片"> | <img src="docs/images/settings.jpg" width="360" alt="快捷日历通用设置，包含开机自动启动和 Light、Dark、System 配色"> |
+
 ## 功能
 
 - **状态栏**：日期、星期、时间；经典 / 简约 / 完整三种样式，可选图标、秒数及 12 / 24 小时制。
