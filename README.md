@@ -85,3 +85,9 @@ Tests/CalendarCoreTests/    日历边界、闰月、节日、时区、天气解�
 Resources/Info.plist        macOS 应用配置
 scripts/                   构建、运行和程序化图标生成
 ```
+
+## 开源许可
+
+本项目采用 [MIT License](LICENSE)，版权所有 © 2026 chenzhen411。
+
+天气数据和服务的使用条款见上方“数据说明”。
