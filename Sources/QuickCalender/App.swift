@@ -50,6 +50,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         updateStatus()
         model.refreshWeather()
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(didBecomeActive), name: NSApplication.didBecomeActiveNotification, object: nil)
+        Task { await model.loginItem.configureOnFirstLaunch() }
         if CommandLine.arguments.contains("--preview") || Bundle.main.object(forInfoDictionaryKey: "QuickCalenderPreview") as? Bool == true { showPreview() }
         if CommandLine.arguments.contains("--settings") { openSettings() }
     }
@@ -68,6 +70,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func didWake() { model.tick(); model.refreshWeather(); updateStatus() }
+
+    @objc private func didBecomeActive() { model.loginItem.refreshStatus() }
 
     @objc private func screensChanged() { popover.close(); preparePopup() }
 

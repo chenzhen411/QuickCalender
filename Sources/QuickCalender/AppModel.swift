@@ -2,6 +2,7 @@ import AppKit
 import CalendarCore
 import Combine
 import SwiftUI
+import AppServices
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -28,6 +29,7 @@ final class AppModel: ObservableObject {
     private var appearanceObservation: NSKeyValueObservation?
     private var requestID = UUID()
     var showSettings: (() -> Void)?
+    let loginItem = LoginItemController()
 
     private var calendarEngine = CalendarEngine()
     private let monthCache = CalendarMonthCache()

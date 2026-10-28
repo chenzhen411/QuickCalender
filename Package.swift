@@ -7,8 +7,10 @@ let package = Package(
     products: [.executable(name: "QuickCalender", targets: ["QuickCalender"])],
     targets: [
         .target(name: "CalendarCore"),
-        .executableTarget(name: "QuickCalender", dependencies: ["CalendarCore"]),
-        .testTarget(name: "CalendarCoreTests", dependencies: ["CalendarCore"])
+        .target(name: "AppServices"),
+        .executableTarget(name: "QuickCalender", dependencies: ["CalendarCore", "AppServices"]),
+        .testTarget(name: "CalendarCoreTests", dependencies: ["CalendarCore"]),
+        .testTarget(name: "AppServicesTests", dependencies: ["AppServices"])
     ],
     swiftLanguageModes: [.v5]
 )

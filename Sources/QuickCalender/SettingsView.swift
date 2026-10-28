@@ -1,5 +1,6 @@
 import SwiftUI
 import CalendarCore
+import AppServices
 
 struct SettingsView: View {
     @ObservedObject var model: AppModel
@@ -15,7 +16,7 @@ struct SettingsView: View {
                     Text("快捷日历  /  QuickCalender").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.3")
+                Text(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.4")
                     .font(.system(size: 10, design: .monospaced)).foregroundStyle(.tertiary)
             }.padding(24)
             Picker("设置分类", selection: $tab) {
@@ -94,6 +95,7 @@ struct SettingsView: View {
 
     private var generalSettings: some View {
         Form {
+            LoginItemSettingsView(controller: model.loginItem)
             Section("界面配色") {
                 Picker("配色", selection: $model.preferences.appearance) {
                     Text("Light").tag("light")
@@ -115,6 +117,36 @@ struct SettingsView: View {
                 Text("公共天气接口用于非商业用途。商业分发前请配置符合服务许可的天气接口。")
             }.font(.system(size: 11)).foregroundStyle(.secondary)
         }.formStyle(.grouped)
+    }
+}
+
+private struct LoginItemSettingsView: View {
+    @ObservedObject var controller: LoginItemController
+
+    var body: some View {
+        Section("启动") {
+            Toggle("开机自动启动", isOn: Binding(
+                get: { controller.isEnabled },
+                set: { enabled in Task { await controller.setEnabled(enabled) } }
+            ))
+            .disabled(controller.isUpdating || !controller.canConfigure)
+            if controller.isUpdating { ProgressView().controlSize(.small) }
+            Text("首次启动时默认开启，登录 Mac 后自动显示状态栏日历。关闭后不会自动重新开启。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+            if !controller.canConfigure {
+                Text("请将快捷日历拖入“应用程序”，再从应用图标启动，以设置开机启动。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            } else if controller.status == .requiresApproval {
+                Text("开机启动尚未获准，请在系统登录项中允许快捷日历。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                Button("打开系统登录项设置") { controller.openSystemSettings() }
+                Button("取消开机启动申请") { Task { await controller.setEnabled(false) } }
+                    .disabled(controller.isUpdating)
+            }
+            if let error = controller.errorMessage {
+                Text(error).font(.system(size: 11)).foregroundStyle(.red)
+            }
+        }.onAppear { controller.refreshStatus() }
     }
 }
 
