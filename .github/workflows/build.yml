@@ -1,0 +1,22 @@
+name: macOS build
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test calendar and weather models
+        run: bash scripts/test.sh
+      - name: Build application
+        run: bash scripts/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QuickCalender-macOS
+          path: dist/QuickCalender-macOS.zip
