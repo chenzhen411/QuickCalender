@@ -43,8 +43,6 @@ dist/QuickCalender.app/Contents/MacOS/QuickCalender --preview
 # 启动时直接显示设置
 open dist/QuickCalender.app --args --settings
 
-# 原生弹窗回归检查（短暂打开测试窗口，写入边界及耗时报告后退出）
-.build/release/QuickCalender --check-popup /tmp/quickcalender-popup.json
 ```
 
 也可以使用 Xcode 打开 `Package.swift` 进行开发。运行上述打包脚本生成包含 `Info.plist` 和图标的标准 `.app`。

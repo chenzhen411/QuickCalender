@@ -43,15 +43,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake), name: NSWorkspace.didWakeNotification, object: nil)
         updateStatus()
-        if let index = CommandLine.arguments.firstIndex(of: "--check-popup"), index + 1 < CommandLine.arguments.count {
-            let path = CommandLine.arguments[index + 1]
-            DispatchQueue.main.async { [self] in
-                guard let button = item.button, let screen = popupScreen else { NSApp.terminate(nil); return }
-                NSApp.activate(ignoringOtherApps: true)
-                PopupCheck(popover: popover, host: calendarHost, model: model, button: button, screen: screen, path: path).run()
-            }
-            return
-        }
         model.refreshWeather()
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         if CommandLine.arguments.contains("--preview") || Bundle.main.object(forInfoDictionaryKey: "QuickCalenderPreview") as? Bool == true { showPreview() }
